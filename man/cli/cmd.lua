@@ -1,7 +1,7 @@
 local str = require('man.core.string')
-local json = require "man.core.json"
+local exit = os.exit
 
-local _M = {version = 0.1, error_level = 0}
+local _M = { version = 0.1, error_level = 0 }
 
 local debug_opt = {
     name = "debug",
@@ -28,8 +28,8 @@ local function help(ops, showOptions, showHelp)
                     default = ' (default: ' .. t.default .. ')'
                 end
                 print(str.r_pad('  --' .. t.name .. short_name, 18) ..
-                          str.r_pad(option, 7) .. (t.description or "") ..
-                          default)
+                    str.r_pad(option, 7) .. (t.description or "") ..
+                    default)
             end
         end
     end
@@ -85,7 +85,7 @@ local function parse_args(args, cmd)
 
         if o.required and not r[o.name] then
             io.stderr:write("Not required parameter: --", o.name, "\n")
-            help({cmd}, true)
+            help({ cmd }, true)
             return
         end
     end
@@ -113,7 +113,7 @@ function _M.execute(cmds, env, arg)
     end
 
     if arg[3] == '-h' then
-        help({o}, true)
+        help({ o }, true)
         return
     end
 
@@ -122,9 +122,14 @@ function _M.execute(cmds, env, arg)
         if args.debug then
             _M.error_level = 2
         end
-        local ok, err = pcall(o.fn, env, args)
-        if not ok then
+        local _, out, err = pcall(o.fn, env, args)
+        if err then
             io.stderr:write(err, '\n')
+            exit(1)
+            return
+        end
+        if out then
+            io.stdout:write(out, '\n')
         end
     end
 end

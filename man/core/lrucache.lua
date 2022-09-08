@@ -55,22 +55,22 @@ local function new_lru_fun(opts)
     return function(key, version, create_obj_fun, ...)
         if not serial_creating or not can_yield_phases[get_phase()] then
             local cache_obj = fetch_valid_cache(lru_obj, invalid_stale,
-                                                item_ttl, item_release, key,
-                                                version)
+                item_ttl, item_release, key,
+                version)
             if cache_obj then
                 return cache_obj.val
             end
 
             local obj, err = create_obj_fun(...)
             if obj ~= nil then
-                lru_obj:set(key, {val = obj, ver = version}, item_ttl)
+                lru_obj:set(key, { val = obj, ver = version }, item_ttl)
             end
 
             return obj, err
         end
 
         local cache_obj = fetch_valid_cache(lru_obj, invalid_stale, item_ttl,
-                                            item_release, key, version)
+            item_release, key, version)
         if cache_obj then
             return cache_obj.val
         end
@@ -89,7 +89,7 @@ local function new_lru_fun(opts)
         end
 
         cache_obj = fetch_valid_cache(lru_obj, invalid_stale, item_ttl, nil,
-                                      key, version)
+            key, version)
         if cache_obj then
             lock:unlock()
             return cache_obj.val
@@ -98,7 +98,7 @@ local function new_lru_fun(opts)
         local obj
         obj, err = create_obj_fun(...)
         if obj ~= nil then
-            lru_obj:set(key, {val = obj, ver = version}, item_ttl)
+            lru_obj:set(key, { val = obj, ver = version }, item_ttl)
         end
         lock:unlock()
 
@@ -108,6 +108,6 @@ end
 
 global_lru_fun = new_lru_fun()
 
-local _M = {version = 0.1, new = new_lru_fun, global = global_lru_fun}
+local _M = { version = 0.1, new = new_lru_fun, global = global_lru_fun }
 
 return _M

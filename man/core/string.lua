@@ -169,4 +169,8 @@ function _M.rand_bytes(len, strong)
     return ffi_str(buf, len)
 end
 
+function _M.trim(s)
+    return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
 return _M

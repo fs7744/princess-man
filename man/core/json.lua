@@ -1,14 +1,14 @@
 local jsonschema = require('jsonschema')
 local log = require('man.core.log')
 local lrucache = require("man.core.lrucache")
-local cached_validator = lrucache.new({count = 1000, ttl = 0})
+local cached_validator = lrucache.new({ count = 1000, ttl = 0 })
 
 local _M = {
     decode = require("cjson.safe").decode,
     encode = require("cjson.safe").encode
 }
 
-local delay_tab = setmetatable({data = ""}, {
+local delay_tab = setmetatable({ data = "" }, {
     __tostring = function(self)
         local res, err = _M.encode(self.data)
         if not res then
@@ -37,7 +37,7 @@ end
 
 local function get_validator(schema)
     local validator, err = cached_validator(schema, nil, create_validator,
-                                            schema)
+        schema)
 
     if not validator then
         return nil, err
