@@ -10,7 +10,7 @@ endif
 INSTALL ?= install
 
 default:
-	mkdir -p logs && mkdir -p tmp && mkdir -p tmp/etcd-data.tmp
+	mkdir -p logs && mkdir -p tmp
 ifeq ($(N_EXEC), )
 	@echo "OpenResty not found !"
 	exit 1

@@ -47,15 +47,140 @@ events {
 stream {
     lua_package_path  "{*lua_package_path*}$prefix/deps/share/lua/5.1/?.lua;$prefix/deps/share/lua/5.1/?/init.lua;$prefix/?.lua;$prefix/?/init.lua;;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1.0-beta3/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua;";
     lua_package_cpath "{*lua_package_cpath*}$prefix/deps/lib64/lua/5.1/?.so;$prefix/deps/lib/lua/5.1/?.so;;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;";
-    server_tokens off;
     lua_socket_log_errors off;
-    uninitialized_variable_warn off;
+    lua_code_cache on;
+
+    {% if tcp_nodelay == false then %}
+    tcp_nodelay off;
+    {% else %}
+    tcp_nodelay on;
+    {% end %}
+
     {% if max_pending_timers then %}
     lua_max_pending_timers {* max_pending_timers *};
     {% end %}
     {% if max_running_timers then %}
     lua_max_running_timers {* max_running_timers *};
     {% end %}
+    {% if preread_buffer_size then %}
+    preread_buffer_size {* preread_buffer_size *};
+    {% end %}
+    {% if preread_timeout then %}
+    preread_timeout {* preread_timeout *};
+    {% end %}
+    {% if proxy_buffer_size then %}
+    proxy_buffer_size {* proxy_buffer_size *};
+    {% end %}
+    {% if proxy_connect_timeout then %}
+    proxy_connect_timeout {* proxy_connect_timeout *};
+    {% end %}
+    {% if proxy_download_rate then %}
+    proxy_download_rate {* proxy_download_rate *};
+    {% end %}
+    {% if proxy_half_close then %}
+    proxy_half_close {* proxy_half_close *};
+    {% end %}
+    {% if proxy_requests then %}
+    proxy_requests {* proxy_requests *};
+    {% end %}
+    {% if proxy_responses then %}
+    proxy_responses {* proxy_responses *};
+    {% end %}
+    {% if proxy_session_drop then %}
+    proxy_session_drop {* proxy_session_drop *};
+    {% end %}
+    {% if proxy_timeout then %}
+    proxy_timeout {* proxy_timeout *};
+    {% end %}
+    {% if proxy_upload_rate then %}
+    proxy_upload_rate {* proxy_upload_rate *};
+    {% end %}
+    {% if proxy_socket_keepalive then %}
+    proxy_socket_keepalive {* proxy_socket_keepalive *};
+    {% end %}
+    {% if proxy_protocol_timeout then %}
+    proxy_protocol_timeout {* proxy_protocol_timeout *};
+    {% end %}
+    {% if variables_hash_bucket_size then %}
+    variables_hash_bucket_size {* variables_hash_bucket_size *};
+    {% end %}
+    {% if variables_hash_max_size then %}
+    variables_hash_max_size {* variables_hash_max_size *};
+    {% end %}
+    {% if proxy_bind then %}
+    proxy_bind {* proxy_bind *};
+    {% end %}
+    {% if resolver_timeout then %}
+    resolver_timeout {* resolver_timeout *};
+    {% end %}
+    resolver {% for _, dns_addr in ipairs(dns_resolver or {}) do %} {*dns_addr*} {% end %} {% if dns_resolver_valid then %} valid={*dns_resolver_valid*}{% end %} ipv6={% if enable_ipv6 then %}on{% else %}off{% end %};
+
+    {% if stream.access_log then %}
+    {% if stream.access_log.enable == false then %}
+    access_log off;
+    {% else %}
+    log_format main '{* stream.access_log.format *}';
+    access_log {* stream.access_log.file *} main buffer=16384 flush=3;
+    {% end %}
+    {% end %}
+
+    {% if stream.lua_shared_dict then %}
+    {% for key, size in pairs(stream.lua_shared_dict) do %}
+    lua_shared_dict {*key*} {*size*};
+    {% end %}
+    {% end %}
+
+    upstream man_upstream {
+        server 0.0.0.1:80;
+
+        balancer_by_lua_block {
+            Man.stream_balancer()
+        }
+    }
+
+    init_by_lua_block {
+        Man = require 'man'
+        Man.stream_init()
+    }
+
+    init_worker_by_lua_block {
+        Man.stream_init_worker()
+    }
+
+    server {
+        {% if not stream.listen then stream.listen = {} end %}
+        {% for _, item in ipairs(stream.listen) do %}
+        listen {* item.ip *}:{* item.port *} {% if item.udp then %} udp {% end %} {% if enable_reuseport then %} reuseport {% end %};
+        {% end %}
+        {% if not stream.ssl then stream.ssl = { enable = false} end %}
+        {% if stream.ssl.enable then %}
+        {% for _, item in ipairs(stream.ssl.listen) do %}
+        listen {* item.ip *}:{* item.port *} ssl {% if enable_reuseport then %} reuseport {% end %};
+        {% end %}
+        ssl_certificate      {* stream.ssl.cert *};
+        ssl_certificate_key  {* stream.ssl.cert_key *};
+        {% if not stream.ssl.session_cache then stream.ssl.session_cache = 'shared:SSL:20m' end %}
+        ssl_session_cache   {* stream.ssl.session_cache *};
+        {% if not stream.ssl.session_timeout then stream.ssl.session_timeout = '10m' end %}
+        ssl_session_timeout {* stream.ssl.session_timeout *};
+        {% if not stream.ssl.protocols then stream.ssl.protocols = 'TLSv1 TLSv1.1 TLSv1.2' end %}
+        ssl_protocols {* stream.ssl.protocols *};
+        {% if not stream.ssl.ciphers then stream.ssl.ciphers = 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384' end %}
+        ssl_ciphers {* stream.ssl.ciphers *};
+        ssl_prefer_server_ciphers on;
+        {% if stream.ssl.session_tickets then %}
+        ssl_session_tickets on;
+        {% else %}
+        ssl_session_tickets off;
+        {% end %}
+        {% end %}
+
+        preread_by_lua_block {
+            Man.stream_preread()
+        }
+
+        proxy_pass man_upstream;
+    }
 }
 {% end %}
 
@@ -129,6 +254,10 @@ function _M.generate(env, args)
     content, err = file.overwrite(args.output, template.compile(tpl)(content))
     if err then
         return nil, err
+    end
+    local code = os.execute(env.openresty_args .. args.output .. ' -t')
+    if code == nil then
+        os.exit(1)
     end
     return 'Generated at: ' .. args.output
 end
