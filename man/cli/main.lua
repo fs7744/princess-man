@@ -1,4 +1,5 @@
 rawset(_G, 'lfs', false)
+local cmd = require("man.cli.cmd")
 
 local function env(home)
     local pkg_cpath_org = package.cpath
@@ -36,15 +37,21 @@ local cmds = {
         description = "init nginx conf",
         options = {
             {
-                name = "conf",
-                short_name = "c",
-                description = "yaml conf",
+                name = "require",
+                short_name = "r",
+                description = "yaml conf or etcd address",
                 required = true,
                 default = e.home .. 'man.yaml'
             },
             {
-                name = "output",
-                short_name = "o",
+                name = "etcd_prefix",
+                description = "etcd prefix",
+                required = false,
+                default = '/man'
+            },
+            {
+                name = "conf",
+                short_name = "c",
                 description = "output generate nginx.conf",
                 required = true,
                 default = e.home .. '/nginx.conf'
@@ -52,6 +59,80 @@ local cmds = {
         },
         fn = function(env, args)
             return require('man.cli.init_conf').generate(env, args)
+        end
+    },
+    {
+        name = "start",
+        description = "start princess man",
+        options = {
+            {
+                name = "require",
+                short_name = "r",
+                description = "yaml conf or etcd address",
+                required = true,
+                default = e.home .. 'man.yaml'
+            },
+            {
+                name = "etcd_prefix",
+                description = "etcd prefix",
+                required = false,
+                default = '/man'
+            },
+            {
+                name = "conf",
+                short_name = "c",
+                description = "output generate nginx.conf",
+                required = true,
+                default = e.home .. '/nginx.conf'
+            }
+        },
+        fn = function(env, args)
+            local _, err = require('man.cli.init_conf').generate(env, args)
+            if not err and cmd.execute_cmd(env.openresty_args .. args.conf .. " -g 'daemon off;'") then
+                return 'Started princess man'
+            else
+                return 'Started failed'
+            end
+        end
+    },
+    {
+        name = "reload",
+        description = "reload princess man",
+        options = {
+            {
+                name = "conf",
+                short_name = "c",
+                description = "output generate nginx.conf",
+                required = true,
+                default = e.home .. '/nginx.conf'
+            }
+        },
+        fn = function(env, args)
+            if cmd.execute_cmd(env.openresty_args .. args.output .. " -s reload") then
+                return 'Reloaded princess man'
+            else
+                return 'Reloaded failed'
+            end
+        end
+    },
+    {
+        name = "stop",
+        description = "stop princess man",
+        options = {
+            {
+                name = "conf",
+                short_name = "c",
+                description = "output generate nginx.conf",
+                required = true,
+                default = e.home .. '/nginx.conf'
+            }
+        },
+        fn = function(env, args)
+            if cmd.execute_cmd(env.openresty_args .. args.output .. " -s stop") then
+                return 'Stoped princess man'
+            else
+                return 'Stoped failed'
+            end
         end
     }
 }

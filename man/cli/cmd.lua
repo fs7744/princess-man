@@ -142,4 +142,13 @@ function _M.call(fn, ...)
     return r
 end
 
+function _M.execute_cmd(cmd)
+    local code = os.execute(cmd)
+    if code == nil then
+        os.exit(1)
+        return false
+    end
+    return true
+end
+
 return _M

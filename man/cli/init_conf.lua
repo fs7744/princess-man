@@ -3,6 +3,7 @@ local file = require("man.core.file")
 local json = require("man.core.json")
 local yaml = require("tinyyaml")
 local str = require("man.core.string")
+local cmd = require("man.cli.cmd")
 
 local tpl = [=[
 env ETCD_HOST;
@@ -140,7 +141,7 @@ stream {
 
     init_by_lua_block {
         Man = require 'man'
-        Man.stream_init()
+        Man.init()
     }
 
     init_worker_by_lua_block {
@@ -180,6 +181,10 @@ stream {
         }
 
         proxy_pass man_upstream;
+
+        log_by_lua_block {
+            Man.stream_log()
+        }
     }
 }
 {% end %}
@@ -230,36 +235,36 @@ local function check_conf(conf)
 end
 
 function _M.generate(env, args)
-    local content, err
-    if file.exists(args.conf) then
-        content, err = file.read_all(args.conf)
+    local content, err, conf
+    if str.has_prefix('http') then
+
+    else
+        if file.exists(args.require) then
+            content, err = file.read_all(args.require)
+        end
+        if err then
+            return nil, err
+        end
+        if not content or content == '' then
+            content = 'man:'
+        end
+        conf = yaml.parse(content)
+        if not conf then
+            return nil, 'Invalid conf yaml'
+        end
+        conf = conf.man
     end
+
+    content = check_conf(conf)
+    content, err = file.overwrite(args.conf, template.compile(tpl)(content))
     if err then
         return nil, err
     end
-    if not content or content == '' then
-        content = 'man:'
+    if cmd.execute_cmd(env.openresty_args .. args.conf .. ' -t') then
+        return 'Generated success at: ' .. args.conf
+    else
+        return 'Generated failed'
     end
-    local conf = yaml.parse(content)
-    if not conf then
-        return nil, 'Invalid conf yaml'
-    end
-    -- if args.debug then
-    --     print(json.encode(conf.man))
-    -- end
-    content = check_conf(conf.man)
-    -- if args.debug then
-    --     print(json.encode(content))
-    -- end
-    content, err = file.overwrite(args.output, template.compile(tpl)(content))
-    if err then
-        return nil, err
-    end
-    local code = os.execute(env.openresty_args .. args.output .. ' -t')
-    if code == nil then
-        os.exit(1)
-    end
-    return 'Generated at: ' .. args.output
 end
 
 return _M

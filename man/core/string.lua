@@ -21,7 +21,7 @@ ffi.cdef [[
     int RAND_pseudo_bytes(unsigned char *buf, int num);
 ]]
 
-local _M = { version = 0.1 }
+local _M = {}
 
 setmetatable(_M, { __index = string })
 
