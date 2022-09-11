@@ -50,6 +50,12 @@ local cmds = {
                 default = '/man'
             },
             {
+                name = "etcd_timeout",
+                description = "etcd timeout",
+                required = false,
+                default = 300
+            },
+            {
                 name = "conf",
                 short_name = "c",
                 description = "output generate nginx.conf",
@@ -79,6 +85,12 @@ local cmds = {
                 default = '/man'
             },
             {
+                name = "etcd_timeout",
+                description = "etcd timeout",
+                required = false,
+                default = 300
+            },
+            {
                 name = "conf",
                 short_name = "c",
                 description = "output generate nginx.conf",
@@ -91,7 +103,7 @@ local cmds = {
             if not err and cmd.execute_cmd(env.openresty_args .. args.conf .. " -g 'daemon off;'") then
                 return 'Started princess man'
             else
-                return 'Started failed'
+                return 'Started failed: ' .. err
             end
         end
     },

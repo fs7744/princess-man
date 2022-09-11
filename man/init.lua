@@ -3,7 +3,7 @@ local stream_context = require("man.stream.context")
 
 local _M = {}
 
-function _M.init()
+function _M.init(params)
     require("resty.core")
 
     if require("man.core.os").osname() == "Linux" then
@@ -17,10 +17,16 @@ function _M.init()
     if not ok then
         log.error("failed to enable privileged_agent: ", err)
     end
+    _G.man_params = params
 end
 
 function _M.stream_init_worker()
+    log.warn(require("man.core.json").encode(man_params))
+end
 
+function _M.stream_ssl_certificate()
+    local ssl = require "ngx.ssl"
+    log.error('server_name: ', ssl.server_name())
 end
 
 function _M.stream_preread()

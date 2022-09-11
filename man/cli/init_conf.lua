@@ -141,7 +141,7 @@ stream {
 
     init_by_lua_block {
         Man = require 'man'
-        Man.init()
+        Man.init({* init_params *})
     }
 
     init_worker_by_lua_block {
@@ -149,15 +149,15 @@ stream {
     }
 
     server {
-        {% if not stream.listen then stream.listen = {} end %}
-        {% for _, item in ipairs(stream.listen) do %}
-        listen {* item.ip *}:{* item.port *} {% if item.udp then %} udp {% end %} {% if enable_reuseport then %} reuseport {% end %};
+        {% if router then %}
+        {% for k, i in pairs(router) do %}
+        {% if i.l4 and i.l4.listen then %}
+        listen {* i.l4.listen *} {% if i.l4.ssl then %} ssl {% end %} {% if i.l4.type == 'udp' then %} udp {% end %} {% if enable_reuseport then %} reuseport {% end %};
+        {% end %}    
+        {% end %}
         {% end %}
         {% if not stream.ssl then stream.ssl = { enable = false} end %}
         {% if stream.ssl.enable then %}
-        {% for _, item in ipairs(stream.ssl.listen) do %}
-        listen {* item.ip *}:{* item.port *} ssl {% if enable_reuseport then %} reuseport {% end %};
-        {% end %}
         ssl_certificate      {* stream.ssl.cert *};
         ssl_certificate_key  {* stream.ssl.cert_key *};
         {% if not stream.ssl.session_cache then stream.ssl.session_cache = 'shared:SSL:20m' end %}
@@ -174,6 +174,10 @@ stream {
         {% else %}
         ssl_session_tickets off;
         {% end %}
+
+        ssl_certificate_by_lua_block {
+            Man.stream_ssl_certificate()
+        }
         {% end %}
 
         preread_by_lua_block {
@@ -236,8 +240,13 @@ end
 
 function _M.generate(env, args)
     local content, err, conf
-    if str.has_prefix('http') then
+    if str.has_prefix(str.lower(args.require), 'http') then
+        if not args.etcd_prefix or str.trim(args.etcd_prefix) == '' then
+            return nil, 'etcd_prefix is required.'
+        end
 
+        conf = { init_params = "{conf_type = 'etcd', etcd_prefix = '" ..
+            args.etcd_prefix .. "', etcd_timeout = " .. args.etcd_timeout .. "}" }
     else
         if file.exists(args.require) then
             content, err = file.read_all(args.require)
@@ -253,6 +262,7 @@ function _M.generate(env, args)
             return nil, 'Invalid conf yaml'
         end
         conf = conf.man
+        conf.init_params = "{conf_type = 'yaml', conf_file = '" .. env.home .. '/' .. args.conf .. "'}"
     end
 
     content = check_conf(conf)
