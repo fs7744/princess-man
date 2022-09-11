@@ -246,7 +246,10 @@ function _M.generate(env, args)
         end
 
         conf = { init_params = "{conf_type = 'etcd', etcd_prefix = '" ..
-            args.etcd_prefix .. "', etcd_timeout = " .. args.etcd_timeout .. "}" }
+            args.etcd_prefix ..
+            "', etcd_timeout = " ..
+            args.etcd_timeout ..
+            ", etcd_host = '" .. args.require .. "', conf_file = '" .. args.conf .. "', home = '" .. env.home .. "'}" }
     else
         if file.exists(args.require) then
             content, err = file.read_all(args.require)
@@ -262,7 +265,8 @@ function _M.generate(env, args)
             return nil, 'Invalid conf yaml'
         end
         conf = conf.man
-        conf.init_params = "{conf_type = 'yaml', conf_file = '" .. env.home .. '/' .. args.conf .. "'}"
+        conf.init_params = "{conf_type = 'yaml', conf_file = '" ..
+            args.conf .. "', yaml_file = '" .. args.require .. "', home = '" .. env.home .. "'}"
     end
 
     content = check_conf(conf)

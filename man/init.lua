@@ -1,4 +1,7 @@
 local log = require("man.core.log")
+local utils = require("man.core.utils")
+local timers = require("man.core.timers")
+local config = require("man.config.manager")
 local stream_context = require("man.stream.context")
 
 local _M = {}
@@ -17,11 +20,16 @@ function _M.init(params)
     if not ok then
         log.error("failed to enable privileged_agent: ", err)
     end
-    _G.man_params = params
+    ok, err = config.init(params)
+    if err then
+        log.error("failed to init config: ", err)
+    end
 end
 
 function _M.stream_init_worker()
-    log.warn(require("man.core.json").encode(man_params))
+    utils.randomseed()
+    timers.init_worker()
+    config.init_worker()
 end
 
 function _M.stream_ssl_certificate()
