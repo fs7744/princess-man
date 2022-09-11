@@ -1,7 +1,6 @@
 local template = require("resty.template")
 local file = require("man.core.file")
-local json = require("man.core.json")
-local yaml = require("tinyyaml")
+local yaml = require("man.config.yaml")
 local str = require("man.core.string")
 local cmd = require("man.cli.cmd")
 
@@ -251,20 +250,10 @@ function _M.generate(env, args)
             args.etcd_timeout ..
             ", etcd_host = '" .. args.require .. "', conf_file = '" .. args.conf .. "', home = '" .. env.home .. "'}" }
     else
-        if file.exists(args.require) then
-            content, err = file.read_all(args.require)
-        end
+        conf, err = yaml.read_conf(args.require)
         if err then
             return nil, err
         end
-        if not content or content == '' then
-            content = 'man:'
-        end
-        conf = yaml.parse(content)
-        if not conf then
-            return nil, 'Invalid conf yaml'
-        end
-        conf = conf.man
         conf.init_params = "{conf_type = 'yaml', conf_file = '" ..
             args.conf .. "', yaml_file = '" .. args.require .. "', home = '" .. env.home .. "'}"
     end
