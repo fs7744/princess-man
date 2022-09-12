@@ -56,6 +56,12 @@ local cmds = {
                 default = 300
             },
             {
+                name = "local_ips",
+                description = "allow listien ips",
+                required = false,
+                default = '.*'
+            },
+            {
                 name = "conf",
                 short_name = "c",
                 description = "output generate nginx.conf",
@@ -89,6 +95,12 @@ local cmds = {
                 description = "etcd timeout",
                 required = false,
                 default = 300
+            },
+            {
+                name = "local_ips",
+                description = "allow listien ips",
+                required = false,
+                default = '.*'
             },
             {
                 name = "conf",

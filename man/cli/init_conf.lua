@@ -2,6 +2,7 @@
 local file = require("man.core.file")
 local yaml = require("man.config.yaml")
 local str = require("man.core.string")
+local json = require("man.core.json")
 local cmd = require("man.cli.cmd")
 
 local tpl = [=[
@@ -110,10 +111,13 @@ stream {
     {% if proxy_bind then %}
     proxy_bind {* proxy_bind *};
     {% end %}
-    {% if resolver_timeout then %}
-    resolver_timeout {* resolver_timeout *};
+
+    {% if dns then %}
+    {% if dns.timeout_str then %}
+    resolver_timeout {* dns.timeout_str *};
     {% end %}
-    resolver {% for _, dns_addr in ipairs(dns_resolver or {}) do %} {*dns_addr*} {% end %} {% if dns_resolver_valid then %} valid={*dns_resolver_valid*}{% end %} ipv6={% if enable_ipv6 then %}on{% else %}off{% end %};
+    resolver {% for _, dns_addr in ipairs(dns.nameservers or {}) do %} {*dns_addr*} {% end %} {% if dns.validTtl_str then %} valid={*dns.validTtl_str*}{% end %} ipv6={% if dns.enable_ipv6 then %}on{% else %}off{% end %};
+    {% end %}
 
     {% if stream.access_log then %}
     {% if stream.access_log.enable == false then %}
@@ -141,7 +145,7 @@ stream {
 
     init_by_lua_block {
         Man = require 'man'
-        Man.init({* init_params *})
+        Man.init([[{* init_params *}]])
     }
 
     init_worker_by_lua_block {
@@ -149,10 +153,10 @@ stream {
     }
 
     server {
-        {% if router then %}
-        {% for k, i in pairs(router) do %}
-        {% if i.l4 and i.l4.listen then %}
-        listen {* i.l4.listen *} {% if i.l4.ssl then %} ssl {% end %} {% if i.l4.type == 'udp' then %} udp {% end %} {% if enable_reuseport then %} reuseport {% end %};
+        {% if router and router.l4 then %}
+        {% for k, i in pairs(router.l4) do %}
+        {% if i and i.listen then %}
+        listen {* i.listen *} {% if i.ssl then %} ssl {% end %} {% if i.type == 'udp' then %} udp {% end %} {% if enable_reuseport then %} reuseport {% end %};
         {% end %}    
         {% end %}
         {% end %}
@@ -218,7 +222,7 @@ local function check_conf_number(conf, key)
     return false
 end
 
-local function check_conf(conf)
+local function check_conf(conf, args)
     if not conf then
         conf = {}
     end
@@ -239,33 +243,64 @@ local function check_conf(conf)
     if not conf.process_events then
         conf.process_events = '10m'
     end
+    if conf.dns then
+        if conf.dns.timeout then
+            conf.dns.timeout_str = (conf.dns.timeout / 1000) .. 's'
+        end
+        if conf.dns.validTtl then
+            conf.dns.validTtl_str = (conf.dns.validTtl / 1000) .. 's'
+        end
+    end
+    if conf.router and conf.router.l4 and args.local_ips then
+        package.loaded['man.config.manager'] = {
+            get_config = function(key)
+                return args
+            end
+        }
+        local l4 = require('man.router.l4')
+        for _, value in pairs(conf.router.l4) do
+            if not l4.filter(value) then
+                value.listen = nil
+            end
+        end
+    end
     return conf
 end
 
 function _M.generate(env, args)
-    require('man.core.log').error('generate start')
     local content, err, conf
+    if type(args.local_ips) == 'string' then
+        args.local_ips = { args.local_ips }
+    end
     if str.has_prefix(str.lower(args.require), 'http') then
         if not args.etcd_prefix or str.trim(args.etcd_prefix) == '' then
             return nil, 'etcd_prefix is required.'
         end
-
-        conf = { init_params = "{conf_type = 'etcd', etcd_prefix = '" ..
-            args.etcd_prefix ..
-            "', etcd_timeout = " ..
-            args.etcd_timeout ..
-            ", etcd_host = '" .. args.require .. "', conf_file = '" .. args.conf .. "', home = '" .. env.home .. "'}" }
+        conf = {}
+        conf.init_params = json.encode({
+            conf_type = 'etcd',
+            conf_file = args.conf,
+            etcd_prefix = args.etcd_prefix,
+            etcd_timeout = args.etcd_timeout,
+            etcd_host = args.require,
+            home = env.home,
+            local_ips = args.local_ips
+        })
     else
         conf, err = yaml.read_conf(args.require)
         if err then
             return nil, err
         end
-        conf.init_params = "{conf_type = 'yaml', conf_file = '" ..
-            args.conf .. "', yaml_file = '" .. args.require .. "', home = '" .. env.home .. "'}"
+        conf.init_params = json.encode({
+            conf_type = 'yaml',
+            conf_file = args.conf,
+            yaml_file = args.require,
+            home = env.home,
+            local_ips = args.local_ips
+        })
     end
 
-    require('man.core.log').error('read_conf')
-    content = check_conf(conf)
+    content = check_conf(conf, args)
     content, err = file.overwrite(args.conf, require("resty.template").compile(tpl)(content))
     if err then
         return nil, err

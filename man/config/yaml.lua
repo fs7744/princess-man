@@ -1,5 +1,4 @@
 local log    = require('man.core.log')
-local events = require("man.core.events")
 local timers = require("man.core.timers")
 local file   = require("man.core.file")
 local ngp    = require("man.core.ngp")
@@ -11,12 +10,7 @@ local _M = {}
 local yaml_change_time
 function _M.init(params)
     _M.params = params
-    local conf, err = _M.read_conf(params.yaml_file)
-    if err then
-        return nil, err
-    end
-    local attributes
-    attributes, err = lfs.attributes(_M.params.yaml_file)
+    local attributes, err = lfs.attributes(_M.params.yaml_file)
     yaml_change_time = attributes.change
 end
 
@@ -38,8 +32,16 @@ local function watch_yaml()
     end
 end
 
+local cahche
 function _M.init_worker()
     timers.register_timer('watch_yaml', watch_yaml, true)
+
+    local conf, err = _M.read_conf(_M.params.yaml_file)
+    if err then
+        return nil, err
+    end
+    cahche = { man = conf, router = conf.router, params = _M.params }
+    conf.router = nil
 end
 
 function _M.read_conf(conf_path)
@@ -56,6 +58,10 @@ function _M.read_conf(conf_path)
         return nil, "invalid yaml: " .. conf_path
     end
     return conf, nil
+end
+
+function _M.get_config(key)
+    return cahche[key]
 end
 
 return _M

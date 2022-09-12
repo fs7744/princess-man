@@ -3,7 +3,12 @@ local utils = require("man.core.utils")
 local timers = require("man.core.timers")
 local events = require("man.core.events")
 local config = require("man.config.manager")
+local json = require("man.core.json")
+local router = require("man.router")
+local sni = require("man.router.sni")
+local l4 = require("man.router.l4")
 local stream_context = require("man.stream.context")
+local ssl = require "ngx.ssl"
 
 local _M = {}
 
@@ -21,6 +26,7 @@ function _M.init(params)
     if not ok then
         log.error("failed to enable privileged_agent: ", err)
     end
+    params = json.decode(params)
     ok, err = config.init(params)
     if err then
         log.error("failed to init config: ", err)
@@ -32,32 +38,50 @@ function _M.stream_init_worker()
     timers.init_worker()
     config.init_worker()
     events.init_worker()
+    router.init_worker()
 end
 
 function _M.stream_ssl_certificate()
-    local ssl = require "ngx.ssl"
-    log.error('server_name: ', ssl.server_name())
 end
 
 function _M.stream_preread()
-    local ctx = stream_context.new_api_context()
-    log.error('hostname: ', ctx.var.hostname, ' protocol: ', ctx.var.protocol, ' server_addr: ', ctx.var.server_addr,
-        ' server_port: ', ctx.var.server_port)
+    local ctx = stream_context.get_api_context()
+    if not ctx then
+        ctx = stream_context.new_api_context()
+    end
+    local server_name = ssl.server_name()
+    if server_name then
+        log.error('stream_preread stream_ssl_certificate ', server_name)
+        sni.match_router(ctx, server_name)
+    end
+    if not ctx.matched_router then
+        l4.match_router(ctx)
+    end
 end
 
 function _M.stream_balancer()
     local ctx = stream_context.get_api_context()
-    log.error('stream_balancer hostname: ', ctx.var.hostname, ' protocol: ', ctx.var.protocol, ' server_addr: ',
-        ctx.var.server_addr,
-        ' server_port: ', ctx.var.server_port)
+    if ctx and ctx.matched_router then
+        log.error('stream_balancer ', ctx.matched_router.id)
+        local server = ctx.matched_router.node[1]
+
+        local ok, err = require("ngx.balancer").set_current_peer(server.host, server.port)
+        log.error('stream_balancer ', server.host, server.port, ok, err)
+    else
+        log.error('stream_balancer no matched_router')
+        ngx.exit(502)
+    end
 end
 
 function _M.stream_log()
     local ctx = stream_context.get_api_context()
-    log.error('stream_log hostname: ', ctx.var.hostname, ' protocol: ', ctx.var.protocol, ' server_addr: ',
-        ctx.var.server_addr,
-        ' server_port: ', ctx.var.server_port)
-    stream_context.clear_api_context()
+    if ctx then
+        log.error('stream_log hostname: ', ctx.var.hostname, ' protocol: ', ctx.var.protocol, ' server_addr: ',
+            ctx.var.server_addr,
+            ' server_port: ', ctx.var.server_port)
+        stream_context.clear_api_context()
+    end
+
 end
 
 return _M
