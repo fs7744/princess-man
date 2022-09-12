@@ -5,4 +5,8 @@ function _M.init(params)
     return _M.loader.init(params)
 end
 
+function _M.init_worker()
+    _M.loader.init_worker()
+end
+
 return _M

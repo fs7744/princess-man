@@ -1,6 +1,7 @@
 local log = require("man.core.log")
 local utils = require("man.core.utils")
 local timers = require("man.core.timers")
+local events = require("man.core.events")
 local config = require("man.config.manager")
 local stream_context = require("man.stream.context")
 
@@ -30,6 +31,7 @@ function _M.stream_init_worker()
     utils.randomseed()
     timers.init_worker()
     config.init_worker()
+    events.init_worker()
 end
 
 function _M.stream_ssl_certificate()

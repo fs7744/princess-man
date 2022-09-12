@@ -1,4 +1,4 @@
-local template = require("resty.template")
+--local template = require("resty.template")
 local file = require("man.core.file")
 local yaml = require("man.config.yaml")
 local str = require("man.core.string")
@@ -124,6 +124,7 @@ stream {
     {% end %}
     {% end %}
 
+    lua_shared_dict process_events {*process_events*};
     {% if stream.lua_shared_dict then %}
     {% for key, size in pairs(stream.lua_shared_dict) do %}
     lua_shared_dict {*key*} {*size*};
@@ -234,10 +235,15 @@ local function check_conf(conf)
     if not check_conf_number(conf, 'worker_connections') then
         conf.worker_connections = 512
     end
+
+    if not conf.process_events then
+        conf.process_events = '10m'
+    end
     return conf
 end
 
 function _M.generate(env, args)
+    require('man.core.log').error('generate start')
     local content, err, conf
     if str.has_prefix(str.lower(args.require), 'http') then
         if not args.etcd_prefix or str.trim(args.etcd_prefix) == '' then
@@ -258,8 +264,9 @@ function _M.generate(env, args)
             args.conf .. "', yaml_file = '" .. args.require .. "', home = '" .. env.home .. "'}"
     end
 
+    require('man.core.log').error('read_conf')
     content = check_conf(conf)
-    content, err = file.overwrite(args.conf, template.compile(tpl)(content))
+    content, err = file.overwrite(args.conf, require("resty.template").compile(tpl)(content))
     if err then
         return nil, err
     end

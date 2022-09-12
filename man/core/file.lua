@@ -1,4 +1,4 @@
-local open = io.open
+local open  = io.open
 local close = io.close
 
 local _M = {}
