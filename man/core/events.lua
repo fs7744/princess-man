@@ -1,4 +1,3 @@
-local ev = require("resty.worker.events")
 local exiting = ngx.worker.exiting
 local ngp = require("man.core.ngp")
 local log = require("man.core.log")
@@ -36,14 +35,26 @@ local function handle(data, event, source, pid)
     end
 end
 
-function _M.init_worker()
-    _M.ev = ev
-    _M.is_privileged = ngp.is_privileged_agent()
-    local ok, err = ev.configure { interval = 0.1, shm = "process_events" }
-    if not ok then
-        return err
+function _M.init()
+    local opts = {
+        listening = "unix:/tmp/events.sock",
+    }
+
+    local ev = require("resty.events").new(opts)
+    if not ev then
+        ngx.log(ngx.ERR, "failed to new events object")
     end
-    ev.register(handle)
+
+    _M.ev = ev
+end
+
+function _M.init_worker()
+    _M.is_privileged = ngp.is_privileged_agent()
+    _M.ev:subscribe("*", "*", handle)
+    local ok, err = _M.ev:init_worker()
+    if not ok then
+        ngx.log(ngx.ERR, "failed to init events: ", err)
+    end
 end
 
 return _M

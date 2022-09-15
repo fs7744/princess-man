@@ -32,6 +32,7 @@ function _M.init(params)
     if err then
         log.error("failed to init config: ", err)
     end
+    require("man.core.events").init()
 end
 
 function _M.stream_init_worker()
