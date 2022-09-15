@@ -9,6 +9,7 @@ local sni = require("man.router.sni")
 local l4 = require("man.router.l4")
 local stream_context = require("man.stream.context")
 local ssl = require "ngx.ssl"
+local balancer = require("man.balancer")
 
 local _M = {}
 

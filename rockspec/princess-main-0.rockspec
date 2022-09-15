@@ -19,7 +19,6 @@ dependencies = {
     "lua-resty-radixtree >= 2.8.2",
     "lua-tinyyaml >= 1.0",
     "lua-resty-etcd >= 1.8.0",
-    "lua-resty-worker-events >= 2.0.1",
     "lua-resty-mlcache >= 2.5.0",
     "lua-resty-balancer >= 0.04",
     "lua-resty-openssl >= 0.8.10",

@@ -6,9 +6,6 @@ local json = require("man.core.json")
 local cmd = require("man.cli.cmd")
 
 local tpl = [=[
-env ETCD_HOST;
-env ETCD_PREFIX;
-env ETCD_TIMEOUT;
 {% if envs then %}
 {% for _, name in ipairs(envs) do %}
 env {*name*};
@@ -42,6 +39,14 @@ worker_shutdown_timeout {* worker_shutdown_timeout *};
 events {
     accept_mutex off;
     worker_connections  {* worker_connections *};
+}
+
+lua {
+    {% if lua_shared_dict then %}
+    {% for key, size in pairs(lua_shared_dict) do %}
+    lua_shared_dict {*key*} {*size*};
+    {% end %}
+    {% end %}
 }
 
 {% if stream and stream.enable then %}
@@ -128,10 +133,15 @@ stream {
     {% end %}
     {% end %}
 
-    lua_shared_dict process_events {*process_events*};
     {% if stream.lua_shared_dict then %}
     {% for key, size in pairs(stream.lua_shared_dict) do %}
     lua_shared_dict {*key*} {*size*};
+    {% end %}
+    {% end %}
+
+    {% if stream.config then %}
+    {% for key, v in pairs(stream.config) do %}
+    {*key*} {*v*};
     {% end %}
     {% end %}
 
@@ -177,6 +187,12 @@ stream {
         ssl_session_tickets on;
         {% else %}
         ssl_session_tickets off;
+        {% end %}
+        
+        {% if stream.server_config then %}
+        {% for key, v in pairs(stream.server_config) do %}
+        {*key*} {*v*};
+        {% end %}
         {% end %}
 
         ssl_certificate_by_lua_block {
@@ -284,7 +300,8 @@ function _M.generate(env, args)
             etcd_timeout = args.etcd_timeout,
             etcd_host = args.require,
             home = env.home,
-            local_ips = args.local_ips
+            local_ips = args.local_ips,
+            dns = conf.dns
         })
     else
         conf, err = yaml.read_conf(args.require)
@@ -296,7 +313,8 @@ function _M.generate(env, args)
             conf_file = args.conf,
             yaml_file = args.require,
             home = env.home,
-            local_ips = args.local_ips
+            local_ips = args.local_ips,
+            dns = conf.dns
         })
     end
 
