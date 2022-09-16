@@ -64,8 +64,7 @@ local function try_init_router(metadata)
     if not metadata._inited then
         local id = metadata.id
         log.error("try_init_router: ", metadata.id)
-        local _, e = init_router(id, metadata)
-        --todo local _, e = lock.run(id, _M, init_router, id, metadata)
+        local _, e = lock.run(id, _M, init_router, id, metadata)
         if e then
             log.error('init router: ', id, ', err: ', e)
         end

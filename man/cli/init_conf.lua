@@ -41,16 +41,6 @@ events {
     worker_connections  {* worker_connections *};
 }
 
-lua {
-    {% if not lrucache_lock then lrucache_lock = '20m' end %}
-    lua_shared_dict lrucache_lock {*lrucache_lock*};
-    {% if lua_shared_dict then %}
-    {% for key, size in pairs(lua_shared_dict) do %}
-    lua_shared_dict {*key*} {*size*};
-    {% end %}
-    {% end %}
-}
-
 {% if stream and stream.enable then %}
 stream {
     lua_package_path  "{*lua_package_path*}$prefix/deps/share/lua/5.1/?.lua;$prefix/deps/share/lua/5.1/?/init.lua;$prefix/?.lua;$prefix/?/init.lua;;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1.0-beta3/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua;";
@@ -135,10 +125,10 @@ stream {
     {% end %}
     {% end %}
 
-    {% if stream.lua_shared_dict then %}
+    {% if not stream.lua_shared_dict then stream.lua_shared_dict = {} end %}
+    {% if not stream.lua_shared_dict['lrucache_lock'] then stream.lua_shared_dict['lrucache_lock'] = '10m' end %}
     {% for key, size in pairs(stream.lua_shared_dict) do %}
     lua_shared_dict {*key*} {*size*};
-    {% end %}
     {% end %}
 
     {% if stream.config then %}
@@ -220,6 +210,14 @@ http {
     lua_package_cpath "{*lua_package_cpath*}$prefix/deps/lib64/lua/5.1/?.so;$prefix/deps/lib/lua/5.1/?.so;;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;";
     lua_socket_log_errors off;
     lua_code_cache on;
+
+    {% if http then %}
+    {% if not http.lua_shared_dict then stream.lua_shared_dict = {} end %}
+    {% if not http.lua_shared_dict['lrucache_lock'] then http.lua_shared_dict['lrucache_lock'] = '10m' end %}
+    {% for key, size in pairs(http.lua_shared_dict) do %}
+    lua_shared_dict {*key*} {*size*};
+    {% end %}
+    {% end %}
 
     init_by_lua_block {
         Man = require 'man'
