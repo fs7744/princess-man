@@ -8,7 +8,6 @@ local router = require("man.router")
 local sni = require("man.router.sni")
 local l4 = require("man.router.l4")
 local stream_context = require("man.stream.context")
-local ssl = require "ngx.ssl"
 local balancer = require("man.balancer")
 
 local _M = {}
@@ -32,7 +31,7 @@ function _M.init(params)
     if err then
         log.error("failed to init config: ", err)
     end
-    require("man.core.events").init()
+    events.init()
 end
 
 function _M.stream_init_worker()
@@ -44,6 +43,8 @@ function _M.stream_init_worker()
 end
 
 function _M.stream_ssl_certificate()
+    local ctx = stream_context.new_api_context()
+    sni.match_router(ctx)
 end
 
 function _M.stream_preread()
@@ -51,14 +52,14 @@ function _M.stream_preread()
     if not ctx then
         ctx = stream_context.new_api_context()
     end
-    local server_name = ssl.server_name()
-    if server_name then
-        log.error('stream_preread stream_ssl_certificate ', server_name)
-        sni.match_router(ctx, server_name)
-    end
     if not ctx.matched_router then
         l4.match_router(ctx)
     end
+    if not ctx.matched_router then
+        sni.match_router(ctx)
+    end
+
+    balancer.prepare(ctx)
 end
 
 function _M.stream_balancer()
