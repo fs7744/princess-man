@@ -22,7 +22,7 @@ dependencies = {
     "lua-resty-mlcache >= 2.5.0",
     "lua-resty-balancer >= 0.04",
     "lua-resty-openssl >= 0.8.10",
-    "lua-resty-healthcheck >= 2.0.0",
+    "lua-resty-healthcheck == 1.6.1",
     "lua-resty-dns-client >= 6.0.2",
     "binaryheap >= 0.4",
     "lua-resty-jwt >= 0.2.3",

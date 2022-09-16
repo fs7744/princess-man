@@ -7,8 +7,9 @@ local events = require("man.core.events")
 local radix = require("resty.radixtree")
 local log = require("man.core.log")
 local lock = require("man.core.lock")
+local up = require('man.balancer.upstream')
 
-local _M = {}
+local _M = { _destroy = { up.destroy_router } }
 
 local function update(routers, m)
     local old_router = m.router
@@ -20,7 +21,7 @@ local function update(routers, m)
         end
         if m.filter(value) then
             value.id = key
-            m.current[key] = m.init_router_metadata(value)
+            _, m.current[key] = pcall(m.init_router_metadata, value)
         end
     end
     local rs = tb.new(#m.current, 0)
@@ -29,10 +30,8 @@ local function update(routers, m)
     end
     m.router = radix.new(rs)
     for _, o in ipairs(old) do
-        if _M._destroy then
-            for key, value in pairs(_M._destroy) do
-                value(o)
-            end
+        for i, value in ipairs(_M._destroy) do
+            pcall(value, o)
         end
         tb.clear(o)
     end
@@ -47,6 +46,7 @@ local function update_routers()
 end
 
 function _M.init_worker()
+    up.init(config.get_config('params'))
     --events.register("config_change", update_routers)
     local routers = config.get_config('router')
     update(routers.sni, sni)

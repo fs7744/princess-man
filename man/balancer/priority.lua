@@ -23,7 +23,7 @@ local function try_next_upstream(ctx, nodeTriedCount)
 
     upstream = nil
     local i = ctx._upstreamId or 1
-    local upstreams = ctx.router_conf.upstreams
+    local upstreams = ctx.matched_router.upstreams
     local err
     local count = #upstreams
     while i <= count do

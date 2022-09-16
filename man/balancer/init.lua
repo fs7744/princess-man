@@ -1,11 +1,14 @@
-local response = require('man.core.response')
-local log = require('man.core.log')
-local balancer = require("ngx.balancer")
-local set_more_tries = balancer.set_more_tries
+local response         = require('man.core.response')
+local log              = require('man.core.log')
+local balancer         = require("ngx.balancer")
+local json             = require("man.core.json")
+local set_more_tries   = balancer.set_more_tries
 local get_last_failure = balancer.get_last_failure
-local set_timeouts = balancer.set_timeouts
+local set_timeouts     = balancer.set_timeouts
 local enable_keepalive = balancer.enable_keepalive and require('man.core.ngp').is_http_system() -- need patch
-local priority = require('man.balancer.priority')
+local priority         = require('man.balancer.priority')
+local up               = require('man.balancer.upstream')
+local lock             = require("man.core.lock")
 
 local _M = {}
 
@@ -43,6 +46,23 @@ end
 
 _M.pick_server = pick_server
 
+local function init_router(k, metadata)
+    log.info('first init router: ', k, ' ', json.encode(metadata))
+    local _, e = pcall(up.init_router, k, metadata)
+    if e then
+        log.error('init router: ', k, ', err: ', e)
+    else
+        metadata._inited = true
+    end
+end
+
+local function try_init_router(metadata)
+    if not metadata._inited then
+        local id = metadata.id
+        lock.run(id, _M, init_router, id, metadata)
+    end
+end
+
 local rewrite_req
 if require('man.core.ngp').is_http_system() then
     local request = require('man.core.request')
@@ -52,6 +72,14 @@ if require('man.core.ngp').is_http_system() then
         if conf == nil then
             return response.exit(404)
         end
+        try_init_router(ctx.matched_router)
+        local server, err = pick_server(ctx)
+        ctx.picked_server = server
+        if not server then
+            log.error("failed to pick server: ", err)
+            return response.exit(404)
+        end
+        return true
     end
 
     function rewrite_req(ctx, server, allow_recreate)
@@ -92,13 +120,17 @@ else
         if conf == nil then
             return response.exit(404)
         end
+        try_init_router(ctx.matched_router)
         local server, err = pick_server(ctx)
         ctx.picked_server = server
         if not server then
             log.error("failed to pick server: ", err)
-            return true
+            return response.exit(404)
         end
         return true
+    end
+
+    function rewrite_req(ctx, server, allow_recreate)
     end
 end
 
@@ -156,7 +188,7 @@ function _M.run(ctx)
     if ctx.picked_server then
         server = ctx.picked_server
         ctx.picked_server = nil
-        set_balancer_opts(ctx.router_conf)
+        set_balancer_opts(ctx.matched_router)
     else
         report_failure(ctx, ctx.proxy_server)
         server, err = pick_server(ctx)
@@ -168,7 +200,7 @@ function _M.run(ctx)
     end
     ctx.proxy_server = server
     local ok
-    ok, err = set_current_peer(server, ctx.router_conf)
+    ok, err = set_current_peer(server, ctx.matched_router)
     if not ok then
         log.error("failed to set the current peer: ", err)
         return response.exit(502)

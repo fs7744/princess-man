@@ -3,6 +3,7 @@ local utils = require("man.core.utils")
 local timers = require("man.core.timers")
 local events = require("man.core.events")
 local config = require("man.config.manager")
+local response = require("man.core.response")
 local json = require("man.core.json")
 local router = require("man.router")
 local sni = require("man.router.sni")
@@ -59,21 +60,13 @@ function _M.stream_preread()
         sni.match_router(ctx)
     end
 
-    balancer.prepare(ctx)
+    if balancer.prepare(ctx) then
+    end
 end
 
 function _M.stream_balancer()
     local ctx = stream_context.get_api_context()
-    if ctx and ctx.matched_router then
-        log.error('stream_balancer ', ctx.matched_router.id)
-        local server = ctx.matched_router.node[1]
-
-        local ok, err = require("ngx.balancer").set_current_peer(server.host, server.port)
-        log.error('stream_balancer ', server.host, server.port, ok, err)
-    else
-        log.error('stream_balancer no matched_router')
-        ngx.exit(502)
-    end
+    balancer.run(ctx)
 end
 
 function _M.stream_log()
