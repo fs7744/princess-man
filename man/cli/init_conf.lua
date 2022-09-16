@@ -42,6 +42,8 @@ events {
 }
 
 lua {
+    {% if not lrucache_lock then lrucache_lock = '20m' end %}
+    lua_shared_dict lrucache_lock {*lrucache_lock*};
     {% if lua_shared_dict then %}
     {% for key, size in pairs(lua_shared_dict) do %}
     lua_shared_dict {*key*} {*size*};

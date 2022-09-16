@@ -10,7 +10,10 @@ local priority         = require('man.balancer.priority')
 local up               = require('man.balancer.upstream')
 local lock             = require("man.core.lock")
 
-local _M = {}
+local _M = {
+    timeout = 1,
+    exptime = 5
+}
 
 
 local global_timeout = { connect = 60, send = 60, read = 60 }
@@ -47,19 +50,25 @@ end
 _M.pick_server = pick_server
 
 local function init_router(k, metadata)
-    log.info('first init router: ', k, ' ', json.encode(metadata))
-    local _, e = pcall(up.init_router, k, metadata)
-    if e then
-        log.error('init router: ', k, ', err: ', e)
-    else
+    --log.info('first init router: ', k, ' ', json.encode(metadata))
+    local success = pcall(up.init_router, k, metadata)
+    if success then
         metadata._inited = true
+    else
+        return nil, 'init router failed'
     end
 end
 
 local function try_init_router(metadata)
+    log.error("try_init_router: ", metadata._inited)
     if not metadata._inited then
         local id = metadata.id
-        lock.run(id, _M, init_router, id, metadata)
+        log.error("try_init_router: ", metadata.id)
+        local _, e = init_router(id, metadata)
+        --todo local _, e = lock.run(id, _M, init_router, id, metadata)
+        if e then
+            log.error('init router: ', id, ', err: ', e)
+        end
     end
 end
 
@@ -72,7 +81,7 @@ if require('man.core.ngp').is_http_system() then
         if conf == nil then
             return response.exit(404)
         end
-        try_init_router(ctx.matched_router)
+        try_init_router(conf)
         local server, err = pick_server(ctx)
         ctx.picked_server = server
         if not server then
@@ -120,7 +129,7 @@ else
         if conf == nil then
             return response.exit(404)
         end
-        try_init_router(ctx.matched_router)
+        try_init_router(conf)
         local server, err = pick_server(ctx)
         ctx.picked_server = server
         if not server then
