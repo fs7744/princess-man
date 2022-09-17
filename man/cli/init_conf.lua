@@ -120,6 +120,7 @@ stream {
     {% if stream.access_log.enable == false then %}
     access_log off;
     {% else %}
+    {% if not stream.access_log.file then stream.access_log.file = 'logs/access.log' end %}
     log_format main '{* stream.access_log.format *}';
     access_log {* stream.access_log.file *} main buffer=16384 flush=3;
     {% end %}
