@@ -133,8 +133,8 @@ stream {
     {% end %}
 
     {% if stream.config then %}
-    {% for key, v in pairs(stream.config) do %}
-    {*key*} {*v*};
+    {% for key, v in ipairs(stream.config) do %}
+    {*v*};
     {% end %}
     {% end %}
 
@@ -183,8 +183,8 @@ stream {
         {% end %}
         
         {% if stream.server_config then %}
-        {% for key, v in pairs(stream.server_config) do %}
-        {*key*} {*v*};
+        {% for key, v in ipairs(stream.server_config) do %}
+        {*v*};
         {% end %}
         {% end %}
 

@@ -1,0 +1,72 @@
+error_log: logs/error.log
+error_log_level: debug
+user: root
+worker_processes: 1
+worker_cpu_affinity: auto
+worker_rlimit_nofile: 111
+worker_connections: 1024
+# worker_rlimit_core: 16G
+# worker_shutdown_timeout: 5m
+lua_package_path: /share/lua/5.1/?.lua;
+lua_package_cpath: /share/lua/5.1/?.so;
+max_pending_timers: 111
+max_running_timers: 3232
+envs:
+  - HOSTNAME
+  - test
+dns:
+  enable_ipv6: false
+  timeout: 5000
+  validTtl: 60000
+  retrans: 5
+  nameservers:
+    - 10.16.73.7
+    - 10.16.83.7
+lua_shared_dict:
+  test_s: 2m
+enable_reuseport: true
+stream:
+  enable: true
+  lua_shared_dict:
+    tesst_s: 2m
+    lrucache_lock: 30m
+  access_log:
+    enable: true
+    format: "$remote_addr [$time_local] $protocol $status $bytes_sent $bytes_received $session_time"
+  ssl:
+    enable: true
+    cert: ssl_PLACE_HOLDER.crt
+    cert_key: ssl_PLACE_HOLDER.key
+  config:
+    lua_shared_dict: TT 65m
+  server_config:
+    - listen 1443 ssl reuseport
+plugins:
+  stream:
+    console:
+      plugin: demo.plugins.console
+router:
+  l4:
+    r1:
+      host:
+        - *
+      listen: 127.0.0.1:8980
+      type: tcp
+      ssl: false
+      upstreams:
+        - lb:  round 
+          nodes:
+            - host: 104.21.79.141
+              port: 443
+              weight: 1
+  sni:
+    r2:
+      host:
+        - www.nunuyy2.org
+      type: sni
+      upstreams:
+        - lb:  round 
+          nodes:
+            - host: 104.21.79.141
+              port: 443
+              weight: 1

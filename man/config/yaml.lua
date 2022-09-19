@@ -7,6 +7,7 @@ local lfs    = require("lfs")
 
 local _M = {}
 
+local cahche = {}
 local yaml_change_time
 function _M.init(params)
     _M.params = params
@@ -32,7 +33,6 @@ local function watch_yaml()
     end
 end
 
-local cahche
 function _M.init_worker()
     timers.register_timer('watch_yaml', watch_yaml, true)
 
@@ -40,8 +40,12 @@ function _M.init_worker()
     if err then
         return nil, err
     end
-    cahche = { man = conf, router = conf.router, params = _M.params }
+    cahche.man = conf
+    cahche.router = conf.router
+    cahche.params = _M.params
+    cahche.plugins = conf.plugins
     conf.router = nil
+    conf.plugins = nil
 end
 
 function _M.read_conf(conf_path)

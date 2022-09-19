@@ -3,11 +3,11 @@ local utils = require("man.core.utils")
 local timers = require("man.core.timers")
 local events = require("man.core.events")
 local config = require("man.config.manager")
-local plugin = require("man.core.plugin")
 local json = require("man.core.json")
 local router = require("man.router")
 local sni = require("man.router.sni")
 local l4 = require("man.router.l4")
+local plugin = require("man.core.plugin")
 local stream_context = require("man.stream.context")
 local balancer = require("man.balancer")
 local exit = require("man.core.response").exit
@@ -38,8 +38,8 @@ end
 
 function _M.stream_init_worker()
     utils.randomseed()
-    timers.init_worker()
     config.init_worker()
+    timers.init_worker()
     events.init_worker()
     plugin.init_worker()
     router.init_worker()
@@ -61,11 +61,10 @@ function _M.stream_preread()
     if not ctx.matched_router then
         sni.match_router(ctx)
     end
-
     if ctx.matched_router then
         plugin.run("preread", ctx)
     end
-    if balancer.prepare(ctx) then
+    if not balancer.prepare(ctx) then
         exit(503)
     end
 end

@@ -1,4 +1,3 @@
-local require = require
 local json = require "man.core.json"
 local pkg_loaded = package.loaded
 local table = require("man.core.table")
@@ -7,7 +6,7 @@ local config = require("man.config.manager")
 local is_http = require('man.core.ngp').is_http_system()
 
 local plugin_method = {
-    "rewrite", "access", "header_filter", "body_filter", "log"
+    "rewrite", "access", "header_filter", "body_filter", "log", "preread"
 }
 
 local _M = { load_times = 0, plugins_hash = {}, handlers = {} }
@@ -70,6 +69,7 @@ local function create_handlers(plugins)
 end
 
 function _M.load(plugin_list)
+
     local unload = plugin_list.unload
     local load = plugin_list.load
     local new_plugins_list = {}
@@ -132,7 +132,7 @@ function _M.run_no_stop(fnName, api_ctx)
 end
 
 function _M.init_worker()
-    local plugins = config.get_config('plugins')
+    local plugins = config.get_config("plugins")
     if plugins then
         local ps
         if is_http then
