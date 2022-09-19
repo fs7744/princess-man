@@ -8,7 +8,7 @@ local router = require("man.router")
 local sni = require("man.router.sni")
 local l4 = require("man.router.l4")
 local plugin = require("man.core.plugin")
-local stream_context = require("man.stream.context")
+local context = require("man.core.context")
 local balancer = require("man.balancer")
 local exit = require("man.core.response").exit
 
@@ -46,14 +46,14 @@ function _M.stream_init_worker()
 end
 
 function _M.stream_ssl_certificate()
-    local ctx = stream_context.new_api_context()
+    local ctx = context.new_api_context()
     sni.match_router(ctx)
 end
 
 function _M.stream_preread()
-    local ctx = stream_context.get_api_context()
+    local ctx = context.get_api_context()
     if not ctx then
-        ctx = stream_context.new_api_context()
+        ctx = context.new_api_context()
     end
     if not ctx.matched_router then
         l4.match_router(ctx)
@@ -70,17 +70,17 @@ function _M.stream_preread()
 end
 
 function _M.stream_balancer()
-    local ctx = stream_context.get_api_context()
+    local ctx = context.get_api_context()
     balancer.run(ctx)
 end
 
 function _M.stream_log()
-    local ctx = stream_context.get_api_context()
+    local ctx = context.get_api_context()
     if ctx then
         log.error('stream_log hostname: ', ctx.var.hostname, ' protocol: ', ctx.var.protocol, ' server_addr: ',
             ctx.var.server_addr,
             ' server_port: ', ctx.var.server_port)
-        stream_context.clear_api_context()
+        context.clear_api_context()
     end
 
 end
