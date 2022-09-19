@@ -1,5 +1,6 @@
 local str = require('man.core.string')
 local config = require('man.config.manager')
+local log = require("man.core.log")
 
 local _M = { current = {} }
 
@@ -38,6 +39,8 @@ function _M.match_router(ctx)
         local metadata, err = _M.router:match(ctx.var.server_port, match_opts)
         if metadata then
             ctx.matched_router = metadata
+        elseif err then
+            log.error(err)
         end
     end
 end

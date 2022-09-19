@@ -142,7 +142,7 @@ stream {
         server 0.0.0.1:80;
 
         balancer_by_lua_block {
-            Man.stream_balancer()
+            Man.balancer()
         }
     }
 
@@ -152,7 +152,7 @@ stream {
     }
 
     init_worker_by_lua_block {
-        Man.stream_init_worker()
+        Man.init_worker()
     }
 
     server {
@@ -163,6 +163,13 @@ stream {
         {% end %}    
         {% end %}
         {% end %}
+        
+        {% if stream.server_config then %}
+        {% for key, v in ipairs(stream.server_config) do %}
+        {*v*};
+        {% end %}
+        {% end %}
+
         {% if not stream.ssl then stream.ssl = { enable = false} end %}
         {% if stream.ssl.enable then %}
         ssl_certificate      {* stream.ssl.cert *};
@@ -171,21 +178,13 @@ stream {
         ssl_session_cache   {* stream.ssl.session_cache *};
         {% if not stream.ssl.session_timeout then stream.ssl.session_timeout = '10m' end %}
         ssl_session_timeout {* stream.ssl.session_timeout *};
-        {% if not stream.ssl.protocols then stream.ssl.protocols = 'TLSv1 TLSv1.1 TLSv1.2' end %}
+        {% if not stream.ssl.protocols then stream.ssl.protocols = 'TLSv1 TLSv1.1 TLSv1.2 TLSv1.3' end %}
         ssl_protocols {* stream.ssl.protocols *};
-        {% if not stream.ssl.ciphers then stream.ssl.ciphers = 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384' end %}
-        ssl_ciphers {* stream.ssl.ciphers *};
-        ssl_prefer_server_ciphers on;
+   
         {% if stream.ssl.session_tickets then %}
         ssl_session_tickets on;
         {% else %}
         ssl_session_tickets off;
-        {% end %}
-        
-        {% if stream.server_config then %}
-        {% for key, v in ipairs(stream.server_config) do %}
-        {*v*};
-        {% end %}
         {% end %}
 
         ssl_certificate_by_lua_block {
@@ -200,7 +199,7 @@ stream {
         proxy_pass man_upstream;
 
         log_by_lua_block {
-            Man.stream_log()
+            Man.log()
         }
     }
 }
@@ -213,10 +212,16 @@ http {
     lua_code_cache on;
 
     {% if http then %}
-    {% if not http.lua_shared_dict then stream.lua_shared_dict = {} end %}
-    {% if not http.lua_shared_dict['lrucache_lock'] then http.lua_shared_dict['lrucache_lock'] = '10m' end %}
+    {% if not http.lua_shared_dict then http.lua_shared_dict = {} end %}
+    {% if not http.lua_shared_dict['http_lrucache_lock'] then http.lua_shared_dict['http_lrucache_lock'] = '10m' end %}
     {% for key, size in pairs(http.lua_shared_dict) do %}
     lua_shared_dict {*key*} {*size*};
+    {% end %}
+    {% end %}
+
+    {% if http.config then %}
+    {% for key, v in ipairs(http.config) do %}
+    {*v*};
     {% end %}
     {% end %}
 
@@ -225,17 +230,136 @@ http {
         Man.init([[{* init_params *}]])
     }
 
+    {% if http and http.enable == true then %}
+    upstream man_upstream {
+        server 0.0.0.1:80;
+
+        balancer_by_lua_block {
+            Man.balancer()
+        }
+    }
+
+    init_worker_by_lua_block {
+        Man.init_worker()
+    }
+
+    server {
+        {% if not http.ssl then http.ssl = { enable = false} end %}
+        {% if http.ssl.enable then %}
+        ssl_certificate      {* http.ssl.cert *};
+        ssl_certificate_key  {* http.ssl.cert_key *};
+        {% if not http.ssl.session_cache then http.ssl.session_cache = 'shared:HTTP_SSL:20m' end %}
+        ssl_session_cache   {* http.ssl.session_cache *};
+        {% if not http.ssl.session_timeout then http.ssl.session_timeout = '10m' end %}
+        ssl_session_timeout {* http.ssl.session_timeout *};
+        {% if not http.ssl.protocols then http.ssl.protocols = 'TLSv1 TLSv1.1 TLSv1.2 TLSv1.3' end %}
+        ssl_protocols {* http.ssl.protocols *};
+        proxy_ssl_protocols {* http.ssl.protocols *};
+        proxy_ssl_server_name on;
+        {% if not http.ssl.ciphers then http.ssl.ciphers = 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384' end %}
+        ssl_ciphers {* http.ssl.ciphers *};
+        ssl_prefer_server_ciphers on;
+        {% if http.ssl.session_tickets then %}
+        ssl_session_tickets on;
+        {% else %}
+        ssl_session_tickets off;
+        {% end %}
+        {% end %}
+
+        {% if http.server_config then %}
+        {% for key, v in ipairs(http.server_config) do %}
+        {*v*};
+        {% end %}
+        {% end %}
+
+        {% if http.access_log then %}
+        {% if http.access_log.enable == false then %}
+        access_log off;
+        {% else %}
+        {% if not http.access_log.file then http.access_log.file = 'logs/access.log' end %}
+        log_format main '{* http.access_log.format *}';
+        access_log {* http.access_log.file *} main buffer=16384 flush=3;
+        {% end %}
+        {% end %}
+
+        location / {
+            set $upstream_mirror_host        '';
+            set $upstream_scheme             '';
+            set $upstream_uri                '';
+            set $upstream_upgrade                '';
+            set $upstream_connection                '';
+
+            access_by_lua_block {
+                Man.access()
+            }
+
+            proxy_ssl_protocols {* http.ssl.protocols *};
+            proxy_ssl_server_name on;
+            proxy_http_version                  1.1;
+
+            proxy_set_header Upgrade $upstream_upgrade;
+            proxy_set_header Connection $upstream_connection;
+            proxy_set_header  Host    $proxy_host;
+            proxy_pass      $upstream_scheme://man_upstream$upstream_uri;
+            mirror          /proxy_mirror;
+
+            header_filter_by_lua_block {
+                Man.header_filter()
+            }
+
+            body_filter_by_lua_block {
+                Man.body_filter()
+            }
+
+            log_by_lua_block {
+                Man.log()
+            }
+        }
+
+        location = /proxy_mirror {
+            internal;
+            if ($upstream_mirror_host = "") {
+                return 200;
+            }
+
+            proxy_pass $upstream_scheme://$upstream_mirror_host$upstream_uri;
+        }
+
+        location @grpc_pass {
+
+            access_by_lua_block {
+                Man.grpc_access()
+            }
+
+            grpc_set_header   Content-Type application/grpc;
+            grpc_socket_keepalive on;
+            grpc_pass         $upstream_scheme://man_upstream;
+
+            header_filter_by_lua_block {
+                Man.header_filter()
+            }
+
+            body_filter_by_lua_block {
+                Man.body_filter()
+            }
+
+            log_by_lua_block {
+                Man.log()
+            }
+        }
+    }
+
+    {% end %}
     # create a listening unix domain socket
     server {
         listen unix:/tmp/events.sock;
         location / {
             content_by_lua_block {
-                -- fetch ev from global
-                local ev = _G.ev
-                ev:run()
+                require('man.core.events').run()
             }
         }
     }
+    
 }
 
 ]=]

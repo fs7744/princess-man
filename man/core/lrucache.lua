@@ -6,6 +6,10 @@ local get_phase = ngx.get_phase
 
 local lock_shdict_name = "lrucache_lock"
 
+if require('man.core.ngp').is_http_system() then
+    lock_shdict_name = "http_lrucache_lock"
+end
+
 local can_yield_phases = {
     ssl_session_fetch = true,
     ssl_session_store = true,

@@ -49,9 +49,12 @@ function _M.init_worker()
     up.init(config.get_config('params'))
     --events.register("config_change", update_routers)
     local routers = config.get_config('router')
-    update(routers.sni, sni)
-    update(routers.l4, l4)
-    update(routers.l7, l7)
+    if require('man.core.ngp').is_http_system() then
+        update(routers.l7, l7)
+    else
+        update(routers.sni, sni)
+        update(routers.l4, l4)
+    end
 end
 
 return _M

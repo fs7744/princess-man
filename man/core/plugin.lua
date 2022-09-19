@@ -6,7 +6,7 @@ local config = require("man.config.manager")
 local is_http = require('man.core.ngp').is_http_system()
 
 local plugin_method = {
-    "rewrite", "access", "header_filter", "body_filter", "log", "preread"
+    "rewrite", "access", "header_filter", "body_filter", "log", "preread", "ssl_certificate"
 }
 
 local _M = { load_times = 0, plugins_hash = {}, handlers = {} }

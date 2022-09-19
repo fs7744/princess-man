@@ -85,33 +85,26 @@ if require('man.core.ngp').is_http_system() then
             log.error("failed to pick server: ", err)
             return response.exit(404)
         end
+        rewrite_req(ctx, server, false)
         return true
     end
 
     function rewrite_req(ctx, server, allow_recreate)
 
         local recreate_request = false
-        if server.proxy_host then
-            request.set_header(ctx, 'host', server.proxy_host)
-            ngx.var.proxy_host = server.proxy_host
-            recreate_request = true
+        if ctx.var.upstream_uri == '' then
+            request.set_var(ctx, 'upstream_uri', ctx.var.request_uri)
         end
-
-        local conf = server.rewrite
-        if not conf then
-            return
-        end
-        if conf.requestHeaders ~= nil then
-            for _, h in ipairs(conf.requestHeaders) do
-                local var
-                if h.matchType == 'const' then
-                    var = h.value
-                else
-                    --var = context.get_req_var(ctx, h.value, h.matchType)
-                end
-                request.set_header(ctx, h.header, var)
-                recreate_request = true
+        if ctx.var.upstream_scheme == '' then
+            local scheme = 'http'
+            if server and server.scheme then
+                scheme = server.scheme
             end
+            request.set_var(ctx, 'upstream_scheme', scheme)
+        end
+        if ctx.var.proxy_host == '' or ctx.var.proxy_host == nil then
+            ngx.var.proxy_host = server.proxy_host or ngx.var.http_host
+            recreate_request = true
         end
         if allow_recreate and recreate_request then
             local _, err = balancer.recreate_request()

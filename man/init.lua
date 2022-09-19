@@ -7,6 +7,7 @@ local json = require("man.core.json")
 local router = require("man.router")
 local sni = require("man.router.sni")
 local l4 = require("man.router.l4")
+local l7 = require("man.router.l7")
 local plugin = require("man.core.plugin")
 local context = require("man.core.context")
 local balancer = require("man.balancer")
@@ -36,7 +37,7 @@ function _M.init(params)
     events.init()
 end
 
-function _M.stream_init_worker()
+function _M.init_worker()
     utils.randomseed()
     config.init_worker()
     timers.init_worker()
@@ -48,6 +49,9 @@ end
 function _M.stream_ssl_certificate()
     local ctx = context.new_api_context()
     sni.match_router(ctx)
+    if ctx.matched_router then
+        plugin.run("ssl_certificate", ctx)
+    end
 end
 
 function _M.stream_preread()
@@ -69,17 +73,62 @@ function _M.stream_preread()
     end
 end
 
-function _M.stream_balancer()
+function _M.access()
+    local ctx = context.get_api_context()
+    if not ctx then
+        ctx = context.new_api_context()
+    end
+    if not ctx.matched_router then
+        l7.match_router(ctx)
+    end
+    if not ctx.matched_router then
+        exit(404)
+    end
+    if plugin.run("rewrite", ctx) or plugin.run("access", ctx) or
+        ctx._stop then
+        return
+    end
+    if not balancer.prepare(ctx) then
+        exit(503)
+        return
+    end
+    local up_scheme = ctx.var.upstream_scheme
+    if not up_scheme then
+        exit(404)
+    elseif up_scheme == "grpcs" or up_scheme == "grpc" then
+        context.stash()
+        ngx.exec("@grpc_pass")
+    end
+end
+
+function _M.grpc_access()
+    local ctx = context.apply_ctx()
+end
+
+function _M.balancer()
     local ctx = context.get_api_context()
     balancer.run(ctx)
 end
 
-function _M.stream_log()
+function _M.header_filter()
+    ngx.header.server = nil
+    local ctx = context.get_api_context()
+    if ctx and ctx.matched_router then
+        plugin.run_no_stop("header_filter", ctx)
+    end
+end
+
+function _M.body_filter()
+    local ctx = context.get_api_context()
+    if ctx and ctx.matched_router then
+        plugin.run("body_filter", ctx)
+    end
+end
+
+function _M.log()
     local ctx = context.get_api_context()
     if ctx then
-        log.error('stream_log hostname: ', ctx.var.hostname, ' protocol: ', ctx.var.protocol, ' server_addr: ',
-            ctx.var.server_addr,
-            ' server_port: ', ctx.var.server_port)
+        pcall(plugin.run, "log", ctx)
         context.clear_api_context()
     end
 

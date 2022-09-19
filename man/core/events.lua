@@ -57,4 +57,8 @@ function _M.init_worker()
     end
 end
 
+function _M.run()
+    _M.ev:run()
+end
+
 return _M

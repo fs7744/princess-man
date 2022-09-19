@@ -1,6 +1,9 @@
 local resty_lock = require("resty.lock")
 
 local lock_shdict_name = "lrucache_lock"
+if require('man.core.ngp').is_http_system() then
+    lock_shdict_name = "http_lrucache_lock"
+end
 
 local _M = {}
 

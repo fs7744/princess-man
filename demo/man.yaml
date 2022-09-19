@@ -1,5 +1,5 @@
 error_log: logs/error.log
-error_log_level: debug
+error_log_level: warning
 user: root
 worker_processes: 1
 worker_cpu_affinity: auto
@@ -38,9 +38,23 @@ stream:
     cert: ssl_PLACE_HOLDER.crt
     cert_key: ssl_PLACE_HOLDER.key
   config:
-    lua_shared_dict: TT 65m
+    - lua_shared_dict TT 65m
   server_config:
     - listen 1443 ssl reuseport
+http:
+  enable: true
+  ssl:
+    enable: true
+    cert: ssl_PLACE_HOLDER.crt
+    cert_key: ssl_PLACE_HOLDER.key
+  config:
+    - client_body_temp_path tmp/client_body_temp
+    - fastcgi_temp_path  tmp/fastcgi_temp
+    - scgi_temp_path  tmp/scgi_temp
+    - uwsgi_temp_path  tmp/uwsgi_temp
+    - proxy_temp_path  tmp/proxy_temp
+  server_config:
+    - listen 8080 reuseport
 plugins:
   stream:
     console:
@@ -54,7 +68,7 @@ router:
       type: tcp
       ssl: false
       upstreams:
-        - lb:  round 
+        - lb:  roundrobin 
           nodes:
             - host: 104.21.79.141
               port: 443
@@ -65,8 +79,21 @@ router:
         - www.nunuyy2.org
       type: sni
       upstreams:
-        - lb:  round 
+        - lb:  roundrobin 
           nodes:
             - host: 104.21.79.141
               port: 443
               weight: 1
+  l7:
+    r3:
+      paths:
+        - *
+      host:
+        - adservice.google.com
+      upstreams:
+        - lb:  roundrobin 
+          nodes:
+            - host: 180.163.151.38
+              port: 443
+              weight: 1
+              scheme: https
