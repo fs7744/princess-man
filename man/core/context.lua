@@ -8,6 +8,7 @@ local env = require("resty.env")
 local cookie = require("resty.cookie")
 local get_var = require("resty.ngxvar").fetch
 local get_request = require("resty.ngxvar").request
+local expr = require("resty.expr.v1")
 local ngx = ngx
 local ngx_var = ngx.var
 
@@ -210,6 +211,55 @@ end
 
 function _M.register_var_name(key)
     ngx_var_names[key] = true
+end
+
+function _M.get_req_var(ctx, key, type)
+    local r
+
+    if type == "vars" then
+        r = ctx.var[key]
+    elseif type == "path" then
+        r = ctx.var.uri
+    elseif type == "originalUrl" then
+        r = ctx.var.request_uri
+    elseif type == "header" then
+        r = ctx.var["http_" .. key]
+    elseif type == "cookie" then
+        r = ctx.var["cookie_" .. key]
+    elseif type == "env" then
+        r = env.get(key)
+    elseif type == "ctx" then
+        r = ctx[key]
+    end
+
+    return r
+end
+
+function _M.is_req_in_allow_list(ctx, allowList)
+    for _, allow in ipairs(allowList) do
+        local ex = allow._expr
+        if ex then
+            if ex:eval(ctx.var) == true then
+                return true
+            end
+        elseif allow.expr then
+            local err
+            ex, err = expr.new(allow.expr)
+            allow._expr = ex
+            if err then
+                log.error('is_req_in_allow_list expr failed ', err)
+            end
+            if ex:eval(ctx.var) == true then
+                return true
+            end
+        elseif allow.matchType then
+            local var = _M.get_req_var(ctx, allow.matchKey, allow.matchType)
+            if str.match_by(var, allow.operator, allow.value) then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 return _M

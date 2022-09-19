@@ -1,7 +1,7 @@
 local str = require('man.core.string')
 local exit = os.exit
 
-local _M = { version = 0.1, error_level = 0 }
+local _M = { error_level = 0 }
 
 local debug_opt = {
     name = "debug",

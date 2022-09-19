@@ -112,6 +112,6 @@ end
 
 global_lru_fun = new_lru_fun()
 
-local _M = { version = 0.1, new = new_lru_fun, global = global_lru_fun }
+local _M = { new = new_lru_fun, global = global_lru_fun }
 
 return _M

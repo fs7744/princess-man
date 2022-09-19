@@ -288,6 +288,7 @@ http {
             set $upstream_uri                '';
             set $upstream_upgrade                '';
             set $upstream_connection                '';
+            set $reason     '';
 
             access_by_lua_block {
                 Man.access()
