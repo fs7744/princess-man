@@ -60,4 +60,12 @@ function _M.log(ctx)
     call_func('log', ctx)
 end
 
+function _M.preread(ctx)
+    call_func('preread', ctx)
+end
+
+function _M.ssl_certificate(ctx)
+    call_func('ssl_certificate', ctx)
+end
+
 return _M
