@@ -5,15 +5,19 @@ local l7 = require("man.router.l7")
 local tb = require('man.core.table')
 local events = require("man.core.events")
 local radix = require("resty.radixtree")
-local log = require("man.core.log")
-local lock = require("man.core.lock")
 local up = require('man.balancer.upstream')
 
 local _M = { _destroy = { up.destroy_router } }
 
-local function update(routers, m)
+local function update(routers, m, unload)
     local old_router = m.router
     local old = tb.new(32, 0)
+    for key, value in pairs(unload or {}) do
+        if m.current[key] then
+            tb.insert(old, m.current[key])
+            m.current[key] = nil
+        end
+    end
     for key, value in pairs(routers or {}) do
         if m.current[key] then
             tb.insert(old, m.current[key])
@@ -41,13 +45,8 @@ local function update(routers, m)
     end
 end
 
-local function update_routers()
-
-end
-
 function _M.init_worker()
     up.init(config.get_config('params'))
-    --events.register("config_change", update_routers)
     local routers = config.get_config('router')
     if require('man.core.ngp').is_http_system() then
         update(routers.l7, l7)
@@ -55,6 +54,16 @@ function _M.init_worker()
         update(routers.sni, sni)
         update(routers.l4, l4)
     end
+
+    events.register('router_l4', function(rs)
+        update(rs.load, l4, rs.unload)
+    end)
+    events.register('router_sni', function(rs)
+        update(rs.load, sni, rs.unload)
+    end)
+    events.register('router_l7', function(rs)
+        update(rs.load, l7, rs.unload)
+    end)
 end
 
 return _M

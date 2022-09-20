@@ -4,6 +4,7 @@ local table = require("man.core.table")
 local log = require("man.core.log")
 local config = require("man.config.manager")
 local is_http = require('man.core.ngp').is_http_system()
+local events = require("man.core.events")
 
 local plugin_method = {
     "rewrite", "access", "header_filter", "body_filter", "log", "preread", "ssl_certificate"
@@ -144,6 +145,7 @@ function _M.init_worker()
             _M.load({ unload = {}, load = ps })
         end
     end
+    events.register('plugins', _M.load)
 end
 
 return _M

@@ -176,6 +176,14 @@ end
 
 function _M.init_worker()
     timers.register_timer('watch_etcd', watch_etcd, true)
+    events.register('configs', function(configs)
+        for key, value in pairs(configs.unload) do
+            cache[key] = nil
+        end
+        for key, value in pairs(configs.load) do
+            cache[key] = value
+        end
+    end)
 end
 
 return _M
