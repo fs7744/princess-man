@@ -50,12 +50,12 @@ end
 
 function _M.start()
     clear_table(metrics)
-    prometheus = prometheus_lib.init("prometheus-metrics", "edge_")
+    prometheus = prometheus_lib.init("prometheus-metrics", "man_")
     metrics.connections = prometheus:gauge("nginx_http_current_connections",
         "Number of HTTP connections",
         { "state" })
 
-    metrics.node_info = prometheus:gauge("node_info", "Edge agent node",
+    metrics.node_info = prometheus:gauge("node_info", "Man agent node",
         { "hostname" })
 
     metrics.status = prometheus:counter("http_status",
@@ -76,7 +76,7 @@ function _M.start()
         })
 
     metrics.config_reachable = prometheus:gauge("config_reachable",
-        "Config server reachable from edge, 0 is unreachable")
+        "Config server reachable from man, 0 is unreachable")
 
     metrics.shared = prometheus:gauge("nginx_shared", "Shared dict status",
         { "key", "type" })
@@ -103,8 +103,8 @@ function _M.log(ctx)
     metrics.latency:observe(upstream_latency, gen_arr("upstream",
         matched_host))
     latency = latency - upstream_latency
-    request.set_var(ctx, 'edge_latency', latency)
-    metrics.latency:observe(latency, gen_arr("edge", matched_host))
+    request.set_var(ctx, 'man_latency', latency)
+    metrics.latency:observe(latency, gen_arr("man", matched_host))
 
     metrics.bandwidth:inc(vars.request_length, gen_arr("ingress", matched_host))
 

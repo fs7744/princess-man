@@ -154,7 +154,7 @@ function _M.header_filter(ctx)
         no_cache_status:delete(ctx.var.upstream_cache_key)
         response.set_header("Cache-Control", ctx.var.upstream_http_cache_control,
             "Expires", ctx.var.upstream_http_expires,
-            "Edge-Cache-Status", ctx.var.upstream_cache_status)
+            "Man-Cache-Status", ctx.var.upstream_cache_status)
     else
         request.set_var(ctx, 'upstream_no_cache', '0')
         log.info("proxy-cache no cache:", '0')

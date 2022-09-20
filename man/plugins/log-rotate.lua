@@ -1,5 +1,5 @@
 local log = require('man.core.log')
-local edgep = require('man.core.edgep')
+local ngp = require('man.core.ngp')
 local timers = require('man.core.timers')
 local time = require('man.core.time')
 local str = require('man.core.string')
@@ -97,7 +97,7 @@ local function rotate()
     end
 
     log.warn("send USER1 signal to master process for reopening log file")
-    local ok, err = edgep.reopen_log()
+    local ok, err = ngp.reopen_log()
     if not ok then
         log.error("failed to reopening log file: ", err)
     end
