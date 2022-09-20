@@ -4,6 +4,7 @@ local dns = require("man.balancer.dns.client")
 local log = require("man.core.log")
 require("lfs")
 require 'pl.compat'
+local ipmatcher = require("resty.ipmatcher")
 
 local _M = {}
 
@@ -44,7 +45,7 @@ local function fetch_domain(upstream_conf)
     end
     local nodes = table.new(#upstream_conf.nodes, 0)
     for _, node in ipairs(upstream_conf.nodes) do
-        if node.domain then
+        if not ipmatcher.parse_ipv4(node.host) and not ipmatcher.parse_ipv6(node.host) then
             local hosts, err = _M.dns:resolve(node.host, _M.dns.RETURN_ALL)
             if hosts then
                 for _, host in ipairs(hosts) do
