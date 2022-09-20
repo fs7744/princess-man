@@ -1,6 +1,7 @@
 --local template = require("resty.template")
 local file = require("man.core.file")
 local yaml = require("man.config.yaml")
+local etcd = require("man.config.etcd")
 local str = require("man.core.string")
 local json = require("man.core.json")
 local cmd = require("man.cli.cmd")
@@ -442,17 +443,27 @@ function _M.generate(env, args)
         if not args.etcd_prefix or str.trim(args.etcd_prefix) == '' then
             return nil, 'etcd_prefix is required.'
         end
-        conf = {}
-        conf.init_params = json.encode({
+        local p = {
             conf_type = 'etcd',
             conf_file = args.conf,
-            etcd_prefix = args.etcd_prefix,
-            etcd_timeout = args.etcd_timeout,
-            etcd_host = args.require,
+            etcd_conf = {
+                key_prefix = args.etcd_prefix,
+                timeout = args.etcd_timeout,
+                http_host = args.require,
+                user = args.user,
+                password = args.password,
+                ssl_verify = args.ssl_verify,
+                ttl = args.ttl,
+            },
             home = env.home,
-            local_ips = args.local_ips,
-            dns = conf.dns
-        })
+            local_ips = args.local_ips
+        }
+        etcd.init(p)
+        conf = etcd.get_config('man')
+        if not conf then
+            return nil, 'not found config man in etcd'
+        end
+        conf.init_params = json.encode(p)
     else
         conf, err = yaml.read_conf(args.require)
         if err then

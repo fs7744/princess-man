@@ -24,6 +24,56 @@ end
 
 local e = env(arg[1])
 
+local generate_params = {
+    {
+        name = "require",
+        short_name = "r",
+        description = "yaml conf or etcd address",
+        required = true,
+        default = e.home .. 'man.yaml'
+    },
+    {
+        name = "etcd_prefix",
+        description = "etcd prefix",
+        required = false,
+        default = '/man'
+    },
+    {
+        name = "etcd_timeout",
+        description = "etcd timeout",
+        required = false,
+        default = 300
+    },
+    {
+        name = "etcd_user",
+        description = "etcd user",
+        required = false
+    },
+    {
+        name = "etcd_password",
+        description = "etcd password",
+        required = false
+    },
+    {
+        name = "etcd_ssl_verify",
+        description = "etcd ssl_verify",
+        required = false
+    },
+    {
+        name = "local_ips",
+        description = "allow listien ips",
+        required = false,
+        default = '.*'
+    },
+    {
+        name = "conf",
+        short_name = "c",
+        description = "output generate nginx.conf",
+        required = true,
+        default = e.home .. '/nginx.conf'
+    }
+}
+
 local cmds = {
     {
         name = "version",
@@ -35,40 +85,7 @@ local cmds = {
     {
         name = "init",
         description = "init nginx conf",
-        options = {
-            {
-                name = "require",
-                short_name = "r",
-                description = "yaml conf or etcd address",
-                required = true,
-                default = e.home .. 'man.yaml'
-            },
-            {
-                name = "etcd_prefix",
-                description = "etcd prefix",
-                required = false,
-                default = '/man'
-            },
-            {
-                name = "etcd_timeout",
-                description = "etcd timeout",
-                required = false,
-                default = 300
-            },
-            {
-                name = "local_ips",
-                description = "allow listien ips",
-                required = false,
-                default = '.*'
-            },
-            {
-                name = "conf",
-                short_name = "c",
-                description = "output generate nginx.conf",
-                required = true,
-                default = e.home .. '/nginx.conf'
-            }
-        },
+        options = generate_params,
         fn = function(env, args)
             return require('man.cli.init_conf').generate(env, args)
         end
@@ -76,40 +93,7 @@ local cmds = {
     {
         name = "start",
         description = "start princess man",
-        options = {
-            {
-                name = "require",
-                short_name = "r",
-                description = "yaml conf or etcd address",
-                required = true,
-                default = e.home .. 'man.yaml'
-            },
-            {
-                name = "etcd_prefix",
-                description = "etcd prefix",
-                required = false,
-                default = '/man'
-            },
-            {
-                name = "etcd_timeout",
-                description = "etcd timeout",
-                required = false,
-                default = 300
-            },
-            {
-                name = "local_ips",
-                description = "allow listien ips",
-                required = false,
-                default = '.*'
-            },
-            {
-                name = "conf",
-                short_name = "c",
-                description = "output generate nginx.conf",
-                required = true,
-                default = e.home .. '/nginx.conf'
-            }
-        },
+        options = generate_params,
         fn = function(env, args)
             local _, err = require('man.cli.init_conf').generate(env, args)
             if not err and cmd.execute_cmd(env.openresty_args .. args.conf .. " -g 'daemon off;'") then

@@ -7,7 +7,7 @@ local lfs    = require("lfs")
 
 local _M = {}
 
-local cahche = {}
+local cache = {}
 local yaml_change_time
 function _M.init(params)
     _M.params = params
@@ -40,10 +40,10 @@ function _M.init_worker()
     if err then
         return nil, err
     end
-    cahche.man = conf
-    cahche.router = conf.router
-    cahche.params = _M.params
-    cahche.plugins = conf.plugins
+    cache.man = conf
+    cache.router = conf.router
+    cache.params = _M.params
+    cache.plugins = conf.plugins
     conf.router = nil
     conf.plugins = nil
 end
@@ -65,7 +65,7 @@ function _M.read_conf(conf_path)
 end
 
 function _M.get_config(key)
-    return cahche[key]
+    return cache[key]
 end
 
 return _M

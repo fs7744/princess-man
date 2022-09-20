@@ -61,4 +61,12 @@ function _M.run()
     _M.ev:run()
 end
 
+function _M.publish_all(source, event, data)
+    _M.ev:publish('all', source, event, data)
+end
+
+function _M.publish_local(source, event, data)
+    _M.ev:publish('current', source, event, data)
+end
+
 return _M
